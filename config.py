@@ -150,7 +150,9 @@ available_setting = {
     "dingtalk_card_enabled": False,
     
     # chatgpt指令自定义触发词
-    "clear_memory_commands": ["#清除记忆"],  # 重置会话指令，必须以#开头
+    "clear_memory_commands": ["#清除记忆","#num"],  # 重置会话指令，必须以#开头
+    "doc_commands":["#num"],
+
     # channel配置
     "channel_type": "",  # 通道类型，支持：{wx,wxy,terminal,wechatmp,wechatmp_service,wechatcom_app,dingtalk}
     "subscribe_msg": "",  # 订阅消息, 支持: wechatmp, wechatmp_service, wechatcom_app
@@ -175,6 +177,7 @@ available_setting = {
     "Minimax_api_key": "",
     "Minimax_group_id": "",
     "Minimax_base_url": "",
+    "attachment": ""
 }
 
 

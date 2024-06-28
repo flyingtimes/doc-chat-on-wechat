@@ -418,7 +418,10 @@ class Godcmd(Plugin):
                                 ok, result = False, "请提供插件名"
                             else:
                                 ok, result = PluginManager().update_plugin(args[0])
+                        elif cmd == "num":
+                            ok, result = True, "test"
                         logger.debug("[Godcmd] admin command: %s by %s" % (cmd, user))
+                    
                 else:
                     ok, result = False, "需要管理员权限才能执行该指令"
             else:

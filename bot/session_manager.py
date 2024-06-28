@@ -58,6 +58,11 @@ class SessionManager(object):
             self.sessions[session_id] = self.sessioncls(session_id, system_prompt, **self.session_args)
         elif system_prompt is not None:  # 如果有新的system_prompt，更新并重置session
             self.sessions[session_id].set_system_prompt(system_prompt)
+        if conf().get("attachment"):  # 如果设置了过期时间，更新session的过期时间
+            with open(conf().get("attachment"),encoding="utf-8") as attachment_file:
+                content = attachment_file.read()
+            p = f"### background\n\n{content}\n\n请基于上面的内容回答用户提出的问题"
+            self.sessions[session_id].set_system_prompt(p)
         session = self.sessions[session_id]
         return session
 

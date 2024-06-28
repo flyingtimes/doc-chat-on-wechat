@@ -12,12 +12,16 @@ from common.log import logger
 from config import conf, load_config
 from .moonshot_session import MoonshotSession
 import requests
-
-
+import pandas as pd
+import json
 # ZhipuAI对话模型API
 class MoonshotBot(Bot):
     def __init__(self):
         super().__init__()
+        qa_df = pd.read_excel('C:\\Users\\13802\\code\\doc-chat-on-wechat\\qa.xlsx', sheet_name=0,dtype=str) 
+        str1 = qa_df.to_json(orient='records')
+        self.qa_memories = json.loads(str1)
+        print(self.qa_memories)
         self.sessions = SessionManager(MoonshotSession, model=conf().get("model") or "moonshot-v1-128k")
         self.args = {
             "model": conf().get("model") or "moonshot-v1-128k",  # 对话模型的名称
@@ -35,6 +39,29 @@ class MoonshotBot(Bot):
             session_id = context["session_id"]
             reply = None
             clear_memory_commands = conf().get("clear_memory_commands", ["#清除记忆"])
+            if query in ["--num","--save","--load","--list"]:
+                if query == "--num":
+                    reply = Reply(ReplyType.TEXT, f"问答对数量:{len(self.qa_memories)}")
+                    print(query)
+                elif query == "--list":
+                    print(self.qa_memories)
+                    print(self.qa_memories[0]["question"])
+                    content = "\n".join(d["question"] for d in self.qa_memories)
+                    reply = Reply(ReplyType.TEXT, content)
+                elif query == "--save":
+                    qa_df = pd.DataFrame(self.qa_memories)
+                    qa_df.to_excel('C:\\Users\\13802\\code\\doc-chat-on-wechat\\qa.xlsx',index=False)
+                    #qa_df.to_csv("C:\\Users\\13802\\code\\doc-chat-on-wechat\\qa.csv", index=False)
+                    #self.qa_memories = qa_df.to_dict(orient='records')
+                    reply = Reply(ReplyType.TEXT, f"{len(self.qa_memories)}个问答对已经保存")
+                elif query == "--load":
+                    #qa_df = pd.to_excel('C:\\Users\\13802\\code\\doc-chat-on-wechat\\qa.xlsx')
+                    qa_df = pd.read_excel('C:\\Users\\13802\\code\\doc-chat-on-wechat\\qa.xlsx', sheet_name=0,dtype=str) 
+                    str1 = qa_df.to_json(orient='records')
+                    self.qa_memories = json.loads(str1)
+                    print(self.qa_memories)
+                    reply = Reply(ReplyType.TEXT, f"已加载{len(self.qa_memories)}个问答对")
+
             if query in clear_memory_commands:
                 self.sessions.clear_session(session_id)
                 reply = Reply(ReplyType.INFO, "记忆已清除")
@@ -44,6 +71,7 @@ class MoonshotBot(Bot):
             elif query == "#更新配置":
                 load_config()
                 reply = Reply(ReplyType.INFO, "配置已更新")
+            
             if reply:
                 return reply
             session = self.sessions.session_query(query, session_id)
@@ -58,6 +86,7 @@ class MoonshotBot(Bot):
             #     return self.reply_text_stream(query, new_query, session_id)
 
             reply_content = self.reply_text(session, args=new_args)
+            self.qa_memories.append({"question": query, "answer": reply_content["content"]})
             logger.debug(
                 "[MOONSHOT_AI] new_query={}, session_id={}, reply_cont={}, completion_tokens={}".format(
                     session.messages,
