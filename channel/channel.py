@@ -42,3 +42,5 @@ class Channel(object):
 
     def build_text_to_voice(self, text) -> Reply:
         return Bridge().fetch_text_to_voice(text)
+    def reset_system_prompt(self,session_id,content):
+        return Bridge().get_bot("chat").reset_system_prompt(session_id,content)

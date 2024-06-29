@@ -24,12 +24,17 @@ from common.time_check import time_checker
 from config import conf, get_appdata_dir
 from lib import itchat
 from lib.itchat.content import *
-
+from pathlib import Path
+from openai import OpenAI
 
 @itchat.msg_register([TEXT, VOICE, PICTURE, NOTE, ATTACHMENT, SHARING])
 def handler_single_msg(msg):
     try:
         cmsg = WechatMessage(msg, False)
+
+        ## add by cgm
+        if msg.type == ATTACHMENT:
+            msg.download("tmp/"+msg.fileName)
     except NotImplementedError as e:
         logger.debug("[WX]single message {} skipped: {}".format(msg["MsgId"], e))
         return None
@@ -178,9 +183,26 @@ class WechatChannel(ChatChannel):
             logger.debug("[WX]receive patpat msg: {}".format(cmsg.content))
         elif cmsg.ctype == ContextType.TEXT:
             logger.debug("[WX]receive text msg: {}, cmsg={}".format(json.dumps(cmsg._rawmsg, ensure_ascii=False), cmsg))
+        elif cmsg.ctype == ContextType.FILE:
+            ## add by cgm
+            logger.info("[WX]receive attachment msg: {}".format(cmsg.content))
+            context = self._compose_context(TEXT, cmsg.content, isgroup=False,msg=cmsg)
+            self._send_reply(context,Reply(ReplyType.TEXT, cmsg.content))
+            client = OpenAI(
+                api_key = conf().get("moonshot_api_key"),
+                base_url = "https://api.moonshot.cn/v1",
+            )
+            
+            # xlnet.pdf 是一个示例文件, 我们支持 pdf, doc 以及图片等格式, 对于图片和 pdf 文件，提供 ocr 相关能力
+            file_object = client.files.create(file=Path(cmsg.content), purpose="file-extract")
+            file_content = client.files.content(file_id=file_object.id).text
+            self.reset_system_prompt(context.kwargs["session_id"],file_content)
+            return
         else:
             logger.debug("[WX]receive msg: {}, cmsg={}".format(cmsg.content, cmsg))
-        context = self._compose_context(cmsg.ctype, cmsg.content, isgroup=False, msg=cmsg)
+        print(cmsg)
+        context = self._compose_context(cmsg.ctype, cmsg.content,msg=cmsg,isgroup=False)
+        print(context)
         if context:
             self.produce(context)
 
@@ -199,7 +221,9 @@ class WechatChannel(ChatChannel):
             # logger.debug("[WX]receive group msg: {}, cmsg={}".format(json.dumps(cmsg._rawmsg, ensure_ascii=False), cmsg))
             pass
         elif cmsg.ctype == ContextType.FILE:
-            logger.debug(f"[WX]receive attachment msg, file_name={cmsg.content}")
+            logger.info(f"[WX]receive attachment msg, file_name={cmsg.content}")
+
+            return
         else:
             logger.debug("[WX]receive group msg: {}".format(cmsg.content))
         context = self._compose_context(cmsg.ctype, cmsg.content, isgroup=True, msg=cmsg)

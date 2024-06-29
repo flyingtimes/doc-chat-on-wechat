@@ -20,6 +20,7 @@ class Session(object):
     def set_system_prompt(self, system_prompt):
         self.system_prompt = system_prompt
         self.reset()
+        print(self.messages)
 
     def add_query(self, query):
         user_item = {"role": "user", "content": query}
@@ -45,7 +46,17 @@ class SessionManager(object):
         self.sessions = sessions
         self.sessioncls = sessioncls
         self.session_args = session_args
+    ## add by cgm
+    def reset_system_prompt(self,session_id,system_prompt):
+        if session_id is None:
+            return self.sessioncls(session_id, system_prompt, **self.session_args)
 
+        if session_id not in self.sessions:
+            self.sessions[session_id] = self.sessioncls(session_id, system_prompt, **self.session_args)
+        elif system_prompt is not None:  # 如果有新的system_prompt，更新并重置session
+            self.sessions[session_id].set_system_prompt(system_prompt)
+        session = self.sessions[session_id]
+        return session
     def build_session(self, session_id, system_prompt=None):
         """
         如果session_id不在sessions中，创建一个新的session并添加到sessions中
@@ -56,13 +67,15 @@ class SessionManager(object):
 
         if session_id not in self.sessions:
             self.sessions[session_id] = self.sessioncls(session_id, system_prompt, **self.session_args)
+            # add by cgm
+            if conf().get("attachment"):  # 如果设置了过期时间，更新session的过期时间
+                with open(conf().get("attachment"),encoding="utf-8") as attachment_file:
+                    content = attachment_file.read()
+                p = f"### background\n\n{content}\n\n请基于上面的内容回答用户提出的问题"
+                self.sessions[session_id].set_system_prompt(p)
         elif system_prompt is not None:  # 如果有新的system_prompt，更新并重置session
             self.sessions[session_id].set_system_prompt(system_prompt)
-        if conf().get("attachment"):  # 如果设置了过期时间，更新session的过期时间
-            with open(conf().get("attachment"),encoding="utf-8") as attachment_file:
-                content = attachment_file.read()
-            p = f"### background\n\n{content}\n\n请基于上面的内容回答用户提出的问题"
-            self.sessions[session_id].set_system_prompt(p)
+        
         session = self.sessions[session_id]
         return session
 

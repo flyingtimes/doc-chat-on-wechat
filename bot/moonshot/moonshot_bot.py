@@ -3,7 +3,6 @@
 import time
 
 import openai
-import openai.error
 from bot.bot import Bot
 from bot.session_manager import SessionManager
 from bridge.context import ContextType
@@ -18,10 +17,9 @@ import json
 class MoonshotBot(Bot):
     def __init__(self):
         super().__init__()
-        qa_df = pd.read_excel('C:\\Users\\13802\\code\\doc-chat-on-wechat\\qa.xlsx', sheet_name=0,dtype=str) 
+        qa_df = pd.read_excel('/Users/clark/code/doc-chat-on-wechat/qa.xlsx', sheet_name=0,dtype=str) 
         str1 = qa_df.to_json(orient='records')
         self.qa_memories = json.loads(str1)
-        print(self.qa_memories)
         self.sessions = SessionManager(MoonshotSession, model=conf().get("model") or "moonshot-v1-128k")
         self.args = {
             "model": conf().get("model") or "moonshot-v1-128k",  # 对话模型的名称
@@ -30,7 +28,10 @@ class MoonshotBot(Bot):
         }
         self.api_key = conf().get("moonshot_api_key")
         self.base_url = conf().get("moonshot_base_url", "https://api.moonshot.cn/v1/chat/completions")
-
+    def reset_system_prompt(self,session_id,content):
+        p = f"### background\n\n{content}\n\n请基于上面的内容回答用户提出的问题"
+        print(p)
+        self.sessions.reset_system_prompt(session_id,p)
     def reply(self, query, context=None):
         # acquire reply content
         if context.type == ContextType.TEXT:
@@ -39,6 +40,7 @@ class MoonshotBot(Bot):
             session_id = context["session_id"]
             reply = None
             clear_memory_commands = conf().get("clear_memory_commands", ["#清除记忆"])
+            ## add by cgm
             if query in ["--num","--save","--load","--list"]:
                 if query == "--num":
                     reply = Reply(ReplyType.TEXT, f"问答对数量:{len(self.qa_memories)}")
@@ -50,13 +52,13 @@ class MoonshotBot(Bot):
                     reply = Reply(ReplyType.TEXT, content)
                 elif query == "--save":
                     qa_df = pd.DataFrame(self.qa_memories)
-                    qa_df.to_excel('C:\\Users\\13802\\code\\doc-chat-on-wechat\\qa.xlsx',index=False)
+                    qa_df.to_excel('/Users/clark/code/doc-chat-on-wechat/qa.xlsx',index=False)
                     #qa_df.to_csv("C:\\Users\\13802\\code\\doc-chat-on-wechat\\qa.csv", index=False)
                     #self.qa_memories = qa_df.to_dict(orient='records')
                     reply = Reply(ReplyType.TEXT, f"{len(self.qa_memories)}个问答对已经保存")
                 elif query == "--load":
                     #qa_df = pd.to_excel('C:\\Users\\13802\\code\\doc-chat-on-wechat\\qa.xlsx')
-                    qa_df = pd.read_excel('C:\\Users\\13802\\code\\doc-chat-on-wechat\\qa.xlsx', sheet_name=0,dtype=str) 
+                    qa_df = pd.read_excel('/Users/clark/code/doc-chat-on-wechat/qa.xlsx', sheet_name=0,dtype=str) 
                     str1 = qa_df.to_json(orient='records')
                     self.qa_memories = json.loads(str1)
                     print(self.qa_memories)
